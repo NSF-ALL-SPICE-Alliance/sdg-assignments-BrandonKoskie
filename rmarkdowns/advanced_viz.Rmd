@@ -133,6 +133,19 @@ Here is the code for a scatter plot you made in the last lesson:
 ggplot(data = sdr_data, aes(x= goal_3_score, y = goal_4_score, color = regions_used_for_the_sdr)) +
   geom_point()
 ```
+```{r}
+goal_scatterplot<-ggplot(data = sdr_data, aes(x = goal_3_score, y = goal_4_score, color = regions_used_for_the_sdr)) +
+  geom_point() +
+  theme_minimal() +
+  scale_fill_viridis_d() +
+  labs(title = "Distributions of SDG 3 Scores",
+       x = "SDG 3 Score",
+       y = "SDG 4 Score",
+       fill = "Region")
+ggplotly(goal_scatterplot)
+```
+
+
 
 *Edit the code chunk above* that generates the plot to:
 
@@ -264,6 +277,22 @@ leaflet(sdr_data_world_joined) %>%
   setView( lat=10, lng=0 , zoom=2) %>%
   addPolygons(stroke = FALSE, fillOpacity = 0.5, smoothFactor = 0.5, color = ~colorQuantile("YlOrRd", goal_7_score)(goal_7_score), label = mytext)
 ```
+
+
+```{r}
+mytext <- paste(
+    "Country: ", sdr_data_world_joined$country,"<br/>", 
+    "Goal 14 Score: ", round(sdr_data_world_joined$goal_14_score, 2), 
+    sep="") %>%
+  lapply(htmltools::HTML)
+
+leaflet(sdr_data_world_joined) %>% 
+  addTiles()  %>% 
+  setView( lat=10, lng=0 , zoom=2) %>%
+  addPolygons(stroke = FALSE, fillOpacity = 0.5, smoothFactor = 0.5, color = ~colorQuantile("magma", goal_14_score)(goal_14_score), label = mytext)
+```
+
+
 #### <span style="color: red;">Challenge 2</span>
 
 Can you edit the code chunk above that generates the map to:
