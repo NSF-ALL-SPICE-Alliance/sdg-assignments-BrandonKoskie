@@ -29,6 +29,7 @@ library(ggpubr)
 library(janitor)
 library(ggcorrplot)
 library(vembedr)
+library()
 ```
 
 
@@ -205,6 +206,19 @@ ggplot(sdr_data, aes(x = goal_12_score,
   theme_minimal() 
 
 ```
+
+
+```{r}
+goals_1_and_3_plot<-ggplot(sdr_data, aes(x = goal_1_score, 
+                     y = goal_3_score, label = country)) +
+  geom_point() +
+  geom_smooth() +
+  stat_cor() +
+  theme_minimal()
+  ggplotly()
+```
+
+There is a positive correlation with goals 1 and 3. Because goal 1 which is no poverty and goal 3, being good health and well-being, shows that when poverty is decreased within a country it will increase the score for good health and well-being because the people will have a higher amounts of wealth or income to afford healthy life styles. Once the people are out of poverty they can afford better housing, medicine, and food. There are some outliers with this scatter plot. The first is Venezuela for having a low score in terms of no poverty but a high score for good health. The second is Gabon for having a low score in health and well-being but a high score in no poverty. These contradictions may come from the lifestyle or politics of the countries.
 
 ### <span style="color: red;">Challenge 1</span>
 
