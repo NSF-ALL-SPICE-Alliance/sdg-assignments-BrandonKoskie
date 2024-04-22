@@ -327,7 +327,7 @@ plotPartial(pd)
 - the color is the models prediction of SDG 3 maternal mortality scores
 
   - intuitively, the models prediction of SDG 3 maternal mortality scores increases when SDG 3 under 5 mortality score and SDG 6 sanitation score increase
-  
+
 
 #### <span style="color: red;">Challenge 1</span>
 
@@ -335,6 +335,19 @@ Edit this code chunk `k2 <- kmeans(sdr_data_imputed, centers = 2)` under the sil
 
 - Then, run the code chunk `fviz_cluster(k2, data = sdr_data_imputed) + theme_minimal()` to see the new visualization with the increased number of clusters
   
+  
+  
+  
+```{r}
+k2 <- kmeans(sdr_data_imputed, centers = 4)
+fviz_cluster(k2, data = sdr_data_imputed) + theme_minimal()
+```
+
+  
+  
+  
+  
+
 #### <span style="color: red;">Challenge 2</span>
 
 Edit this code chunk `rf_matmort <- randomForest(normalized_score_sdg3_matmort ~ ., data = sdr_data_imputed, importance = TRUE)` to predict a different indicator score (any indicator other than normalized_score_sdg3_matmort)
@@ -346,7 +359,45 @@ Edit this code chunk `rf_matmort <- randomForest(normalized_score_sdg3_matmort ~
     - *Hint* make sure to continue replacing rf_matmort with the new name you assign your random forest model
 
 
+```{r}
+rf_energy <- randomForest(normalized_score_sdg7_elecac ~ ., data = sdr_data_imputed, importance = TRUE)
+```
+
+```{r}
+rf_energy
+```
+
+```{r}
+importance_df <- as.data.frame(rf_energy$importance)
+```
+
+```{r}
+importance_df_top_10 <- importance_df %>%
+  rownames_to_column(var = "variable") %>%
+  slice_max(n = 10, order_by = `%IncMSE`)
+```
 
 
+```{r}
+ggplot(importance_df_top_10, aes(x = `%IncMSE`, y = reorder(variable, `%IncMSE`))) +
+  geom_bar(stat = "identity", fill = "steelblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Most Important Variables in Predicting Affordable/Clean Energy",
+       subtitle = "Top 10",
+       y = "SDG Indicator",
+       x = "Feature Importance (% Increase in Mean Squared Error)")
+```
+
+
+
+```{r}
+pdp::partial(rf_matmort, pred.var = "normalized_score_sdg7_elecac", plot = TRUE)
+```
+
+```{r}
+pd <- pdp::partial(rf_energy, pred.var = c("normalized_score_sdg6_sanita", "normalized_score_sdg6_water"))
+# Default PDP
+plotPartial(pd)
+```
 
   
