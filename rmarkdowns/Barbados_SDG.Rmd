@@ -1,0 +1,257 @@
+---
+title: "Barbados SDG Analytics"
+author: "Brandon Koskie"
+date: "2024-05-01"
+output: 
+  html_document:
+    theme: darkly
+    toc: true
+    toc_float: true
+---
+
+
+Load in Packages used in the analysis
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(janitor)
+library(leaflet)
+library(plotly)
+library(missForest)
+library(missRanger)
+library(randomForest)
+library(dplyr)
+library(tibble)
+library(ggplot2)
+library(mice)
+library(ggcorrplot)
+library(naniar)
+```
+
+
+Read in Data
+
+This is the SDR 2023 Data
+
+- This is from the [sustainability development report](https://sdgtransformationcenter.org/reports/sustainable-development-report-2023)
+
+```{r, message=FALSE}
+sdr_data <- read_csv(here("data/SDR-2023-Data.csv"))
+```
+
+Clean column names of our data frame
+
+```{r}
+sdr_data <- sdr_data %>% 
+  clean_names()
+```
+
+Barbados is a small island country in the Caribbean region of North America. It is furthest east of the Caribbean Islands and it's capital/largest city is Bridgetown. In 1966, Barbados achieved political independence and was no longer a British colony.In 2021, Barbados became a republic within the Commonwealth. A cool fact about this island is that it is made of coral. With the island being less than one million years old, it was created by a collision of the Atlantic crustal and Caribbean plates shifting the land upward. Some environmental issues in Barbados are protecting the coral reefs and aquifers, along with over fishing.
+
+
+- Overall score for Barbados is 69.35 with a rank of 84.
+
+
+## Global distribution of overfishing SDG
+
+
+```{r}
+barbados_score <- 63.9
+goal_14_histogram <- ggplot(sdr_data, aes(x = goal_14_score, fill = regions_used_for_the_sdr)) +
+  geom_histogram() +
+  geom_vline(xintercept = barbados_score, color = "red", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  scale_fill_viridis_d() +
+  labs(title = "Distributions of SDG 14 Scores",
+       x = "SDG 14 Score",
+       y = "Number of Countries",
+       fill = "Regions with Barbados included")
+  
+ggplotly(goal_14_histogram)
+
+```
+
+The visualization above shows the global scores from various countries with the variable being SDG 14. Since SDG 14 represents Life Below Water, this represents overall how many countries within each region score for the goal out of 100 points. For example, when interacting with the histogram we can see that 4 countries in Sub-Saharan Africa achieved a score of 70.49655 while 1 country in Sub-Saharan Africa got a score of 74.20690. I chose to visualize the data as a histogram because it compiles the countries into regions giving it a condensed yet accurate view of all the scores. I then decided also to code a vertical line to show where Barbados lies in the histogram which acts as a way to compare its scores to the other regions. This visualization shows us how Barbados lies close to the middle when comparing all the scores together. This explains how there are still issues within the country of Barbados that need to be improved to increase the score.
+
+## Faceted bar chart of all SDG 14 indicators
+
+```{r}
+sdg_14_indicators  <- c("normalized_score_sdg14_cpma", "normalized_score_sdg14_cleanwat", "normalized_score_sdg14_fishstocks", "normalized_score_sdg14_biomar", "normalized_score_sdg14_trawl", "normalized_score_sdg14_discard", "country", "regions_used_for_the_sdr")
+```
+
+
+```{r}
+sdr_data_14 <- sdr_data %>% 
+  select(all_of(sdg_14_indicators))
+```
+
+
+```{r}
+sdr_data_14_longer <- sdr_data_14 %>% 
+  pivot_longer(cols= starts_with("normalized_score_sdg14"),
+               names_to ="indicator",
+               values_to ="normalized_score")
+```
+
+
+```{r, fig.height=10, fig.width=10}
+ggplot(sdr_data_14_longer, aes(x=indicator, y=country, fill=normalized_score)) +
+  geom_tile(color="white") +
+  scale_fill_viridis_c(option="plasma") +
+  facet_wrap(~regions_used_for_the_sdr, scales="free_y") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust=1, hjust=1, size=5),
+    axis.text.y=element_text(size=5))
+labs(x="", fill="Score")
+```
+
+The variables shown in this faceted bar chart from left to right are Marine Biodiversity Threats, Clean Water, Marine Protected Areas, Discarded Fish After Being Caught, Fish Caught From Overexploited/Collapsed Stocks, and Fish Caught By Trawling/Dredging. The scores for each indicator are from 0-100 with higher numbers showing a positive status for the given indicator and 0 showing a negative status. This visualization shows a deeper dive into the scores of each indicator for SDG goal 14. With the given scores, we have a more specific view into how the overall goal is influenced by each of these indicators. I chose to represent the data using a faceted bar chart because it proved to be efficient in showing the scores for multiple variables in many different countries. The visualization shows us for example, Barbados is struggling with "normalized_score_sdg14_cpma" which is the amount of Marine Protected Areas. This makes sense because Barbados only has 2 Marine Protected areas which are Carlisle Bay and Folkestone. Another indicator the island has a low score in is Clean Water which would be most likely due to algae blooms in the ocean growing extraordinary amounts of sargassum, a large brown seaweed that only floats. When this seaweed decomposes, it emits hydrogen sulfide gas and ammonia. This causes respiratory, skin, and neurocognitive symptoms. The last score Barbados is low in is Fish Stocks. This is because Barbados has had no proper fishing regulations put for almost none of the species. This means that locals can catch as many as they want at any size.
+
+
+## SDG correlating with life below water in Barbados?
+
+
+```{r}
+sdr_scores <- sdr_data %>%
+  select(
+    goal_1_score, goal_2_score, goal_3_score, goal_4_score, goal_5_score,
+    goal_6_score, goal_7_score, goal_8_score, goal_9_score, goal_10_score,
+    goal_11_score, goal_12_score, goal_13_score, goal_14_score, goal_15_score,
+    goal_16_score, goal_17_score
+  )
+```
+
+```{r}
+sdr_scores_matrix <- as.matrix(sdr_scores)
+```
+
+```{r}
+cor <- cor(sdr_scores_matrix, use = "complete.obs")
+```
+
+```{r}
+ggcorrplot(cor, method = "circle", type = "lower", lab = TRUE, lab_size = 2) +
+  theme(axis.text.y = element_text(size = 8),
+  axis.text.x = element_text(size = 8))
+```
+
+When looking at this Correlation matrix, we can see all the Sustainable Development Goals listed on the x-and y-axis. This is to show how much each goal correlates with one another. The score is based on a correlation coefficient that scales from +1 to -1. +1 represents a positive correlation, -1 gives a negative correlation, and 0 shows no correlation at all. This was the best choice for showing the data due to its efficiency in lining up the goals all together to view patterns, relationships, and multicollinearity. The plot shows for goal 14 that all the other goals have almost no correlation at all with the goal Life Below Water. This may be due to the other goals having completely different indicators from each other. This would mean that however these scores change over time, they will have little effect on goal 14.
+
+
+## What are the strongest predictors of the SDG's normalized score?
+What are the predictors of trawling?
+
+```{r}
+sdr_data <- read_csv(here("data/SDR-2023-Data.csv"))
+```
+
+```{r}
+sdr_data <- sdr_data %>% 
+  clean_names()
+```
+
+
+```{r}
+sdr_data_normalized_scores <- sdr_data %>% 
+  select(country, contains("normalized_score"))
+```
+
+
+```{r}
+sum(is.na(sdr_data_normalized_scores))
+```
+
+
+```{r}
+sdr_data_normalized_scores_longer <- sdr_data_normalized_scores %>% 
+  pivot_longer(cols = !country)
+```
+
+
+
+```{r}
+missing_data_by_country <- sdr_data_normalized_scores_longer %>%
+ group_by(country) %>%
+ miss_var_summary() %>% 
+ arrange(desc(pct_miss))
+
+missing_data_by_country
+```
+
+
+
+```{r}
+completely_na_countries  <- missing_data_by_country$country[missing_data_by_country$pct_miss == 100]
+completely_na_countries
+```
+
+
+
+```{r}
+sdr_data_normalized_scores_no_na_countries <- sdr_data_normalized_scores %>% 
+  filter(!country %in% completely_na_countries)
+```
+
+
+```{r}
+imputed_data <- mice(sdr_data_normalized_scores_no_na_countries, method = "mean")
+```
+
+```{r}
+imputed_data_no_na_countries <- complete(imputed_data)
+```
+
+
+```{r}
+rf_trawl <- randomForest(normalized_score_sdg14_trawl~ .,
+                             data = imputed_data_no_na_countries,
+                             importance = TRUE)
+```
+
+
+```{r}
+rf_trawl
+```
+
+```{r}
+importance_df_trawl <- as.data.frame(rf_trawl$importance)
+```
+
+
+
+```{r}
+importance_df_top_10_trawl <- importance_df_trawl %>%
+  rownames_to_column(var = "variable") %>%
+  slice_max(n = 10, order_by = `%IncMSE`)
+```
+
+
+```{r}
+ggplot(importance_df_top_10_trawl, aes(x = `%IncMSE`, y = reorder(variable, `%IncMSE`))) +
+  geom_bar(stat = "identity", fill = "steelblue", color = "black") +
+  theme_minimal() +
+  labs(title = "Most Important Variables in Predicting Trawling",
+       subtitle = "Top 10",
+       y = "SDG Indicator",
+       x = "Feature Importance (% Increase in Mean Squared Error)")
+```
+
+This was produced from imputed data which was then used in a trained random forest model to show which variables are the strongest in predicting trawling. Each variable listed is a Sustainable Development Goal Indicator with different levels of importance for the the main topic. This graph was the best method for visualizing the data by ranking the indicators from most to least important. The ability to imput the data also helps so areas with no data can be filled in for the training model. For example, the graph shows us how "Discarded Fish After Being Caught"(normalized_score_sdg_14_discard) is the strongest predictor of trawling. This makes sense because if a country has a low score in discarded fish, this could mean that they are taking in too much by catch from commercial fishing and trawling is most likely the culprit here. When looking back at the faceted bar chart, Barbados has a positively high score in trawling and fish discards. This means that because there is little fish being discarded, trawling isn't likely to be occurring around the islands ocean.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
